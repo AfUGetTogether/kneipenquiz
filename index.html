@@ -2,60 +2,243 @@
 <html lang="de">
 <head>
   <meta charset="UTF-8" />
-  <title>Kneipenquiz Anmeldung</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AfU Get Together – Kneipenquiz</title>
+  <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
   <style>
-    body { font-family: sans-serif; padding: 2rem; background: #f8f8f8; }
-    form { background: #fff; padding: 1rem; border-radius: 8px; max-width: 400px; margin: auto; }
-    label { display: block; margin-top: 1rem; }
-    input { width: 100%; padding: 0.5rem; margin-top: 0.3rem; }
-    button { margin-top: 1.5rem; padding: 0.5rem 1rem; }
-    .success { color: green; margin-top: 1rem; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f0f2f5;
+      color: #333;
+    }
+
+    header {
+      background: #4a90e2;
+      color: white;
+      padding: 2rem 1rem;
+      text-align: center;
+    }
+
+    header h1 { margin: 0; font-size: 2rem; }
+    header p { margin: 0.5rem 0 0; font-size: 1.1rem; }
+
+    main {
+      max-width: 700px;
+      margin: 2rem auto;
+      padding: 1rem;
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+
+    h2 {
+      border-bottom: 2px solid #4a90e2;
+      padding-bottom: 0.3rem;
+      margin-top: 2rem;
+    }
+
+    label {
+      display: block;
+      margin-top: 1rem;
+      font-weight: bold;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 0.3rem;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      font-size: 1rem;
+    }
+
+    button {
+      margin-top: 1.5rem;
+      background: #4a90e2;
+      color: white;
+      border: none;
+      padding: 0.7rem 1.5rem;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    button:hover {
+      background: #357ac9;
+    }
+
+    .feedback {
+      margin-top: 1rem;
+      font-weight: bold;
+    }
+
+    .success { color: green; }
+    .error { color: red; }
+
+    ul {
+      list-style-type: none;
+      padding-left: 0;
+      margin-top: 1rem;
+    }
+
+    li {
+      padding: 0.3rem 0;
+      border-bottom: 1px solid #eee;
+    }
+
+    .team-info {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .team-count {
+      font-weight: bold;
+      margin-top: 1rem;
+    }
+
+    @media (max-width: 600px) {
+      header h1 { font-size: 1.5rem; }
+      main { margin: 1rem; padding: 1rem; }
+      .team-info { flex-direction: column; align-items: flex-start; }
+    }
   </style>
 </head>
 <body>
 
-  <h1>Kneipenquiz – Team anmelden</h1>
+  <header>
+    <h1>AfU Get Together</h1>
+    <p>Kneipenquiz am 20.5.2025 – 16 Uhr · Raum 316</p>
+  </header>
 
-  <form id="quizForm">
-    <label for="teamName">Teamname:</label>
-    <input type="text" id="teamName" name="teamName" required />
+  <main>
 
-    <label for="email">E-Mail-Adresse:</label>
-    <input type="email" id="email" name="email" required />
+    <section>
+      <h2>Anmeldung</h2>
+      <p>Hier kannst du dein Team anmelden. Es dürfen 2 bis 4 Personen teilnehmen. Maximal 10 Teams insgesamt.</p>
+      <form id="quizForm">
+        <label for="teamName">Teamname:</label>
+        <input type="text" id="teamName" name="teamName" required />
 
-    <button type="submit">Anmelden</button>
-    <p id="feedback" class="success"></p>
-  </form>
+        <label for="email">E-Mail-Adresse:</label>
+        <input type="email" id="email" name="email" required />
+
+        <label for="teamSize">Teamgröße (2–4 Personen):</label>
+        <select id="teamSize" name="teamSize" required>
+          <option value="" disabled selected>Bitte auswählen</option>
+          <option value="2">2 Personen</option>
+          <option value="3">3 Personen</option>
+          <option value="4">4 Personen</option>
+        </select>
+
+        <button type="submit" id="submitBtn">Jetzt anmelden</button>
+        <p id="feedback" class="feedback"></p>
+      </form>
+    </section>
+
+    <section>
+      <h2>Teams</h2>
+      <p id="teamCount" class="team-count">0 von 10 Teams angemeldet</p>
+      <ul id="teamList"></ul>
+    </section>
+
+  </main>
 
   <script>
     const form = document.getElementById('quizForm');
     const feedback = document.getElementById('feedback');
+    const teamList = document.getElementById('teamList');
+    const teamCount = document.getElementById('teamCount');
+    const submitBtn = document.getElementById('submitBtn');
+
+    const SUPABASE_URL = 'https://kzgyaxcbxynhmherwmro.supabase.co';
+    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6Z3lheGNieHluaG1oZXJ3bXJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyODYwMzUsImV4cCI6MjA1OTg2MjAzNX0.OgWr4CFCvjKBKznsw9RZwe4mdq4dyNBl4jduvBF40O0';
+    const EMAILJS_SERVICE_ID = 'service_bp0g7aw'; 
+    const EMAILJS_TEMPLATE_ID = 'template_psn91iv';
+    const EMAILJS_PUBLIC_KEY = 'oLxnr_jGvicpbd7JM'; 
+
+    emailjs.init(EMAILJS_PUBLIC_KEY);
+
+    async function fetchTeams() {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/teams?select=team_name,team_size`, {
+        headers: {
+          'apikey': API_KEY,
+          'Authorization': `Bearer ${API_KEY}`
+        }
+      });
+
+      const data = await res.json();
+      teamList.innerHTML = '';
+      data.forEach(team => {
+        const li = document.createElement('li');
+        li.innerHTML = `<div class="team-info"><span>${team.team_name}</span><span>${team.team_size} Personen</span></div>`;
+        teamList.appendChild(li);
+      });
+
+      teamCount.textContent = `${data.length} von 10 Teams angemeldet`;
+
+      if (data.length >= 10) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Anmeldung geschlossen – alle Plätze belegt";
+        form.querySelectorAll("input, select").forEach(el => el.disabled = true);
+      }
+    }
 
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
 
-      const teamName = document.getElementById('teamName').value;
-      const email = document.getElementById('email').value;
+      const teamName = document.getElementById('teamName').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const teamSize = parseInt(document.getElementById('teamSize').value);
 
-      const response = await fetch('https://kzgyaxcbxynhmherwmro.supabase.co/rest/v1/teams', {
+      if (!teamName || !email || isNaN(teamSize)) {
+        feedback.textContent = "Bitte alle Felder korrekt ausfüllen.";
+        feedback.className = "feedback error";
+        return;
+      }
+
+      if (teamSize < 2 || teamSize > 4) {
+        feedback.textContent = "Teamgröße muss zwischen 2 und 4 Personen liegen.";
+        feedback.className = "feedback error";
+        return;
+      }
+
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/teams`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6Z3lheGNieHluaG1oZXJ3bXJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyODYwMzUsImV4cCI6MjA1OTg2MjAzNX0.OgWr4CFCvjKBKznsw9RZwe4mdq4dyNBl4jduvBF40O0',
-          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6Z3lheGNieHluaG1oZXJ3bXJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyODYwMzUsImV4cCI6MjA1OTg2MjAzNX0.OgWr4CFCvjKBKznsw9RZwe4mdq4dyNBl4jduvBF40O0'
+          'apikey': API_KEY,
+          'Authorization': `Bearer ${API_KEY}`
         },
-        body: JSON.stringify({ team_name: teamName, email: email })
+        body: JSON.stringify({
+          team_name: teamName,
+          email: email,
+          team_size: teamSize
+        })
       });
 
       if (response.ok) {
-        feedback.textContent = "Anmeldung erfolgreich – check deine Mails bald 😉";
+        // ✅ E-Mail senden
+        emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+          team_name: teamName,
+          email: email
+        });
+
+        feedback.textContent = "Anmeldung erfolgreich! Eine Bestätigung wurde gesendet.";
+        feedback.className = "feedback success";
         form.reset();
+        fetchTeams();
       } else {
         feedback.textContent = "Fehler bei der Anmeldung. Bitte versuch's nochmal.";
-        feedback.style.color = 'red';
+        feedback.className = "feedback error";
       }
     });
+
+    fetchTeams();
   </script>
 
 </body>
 </html>
+
+service_bp0g7aw
