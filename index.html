@@ -19,10 +19,14 @@
       color: white;
       padding: 2rem 1rem;
       text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
     }
 
     header h1 { margin: 0; font-size: 2rem; }
     header p { margin: 0.5rem 0 0; font-size: 1.1rem; }
+    #countdown { margin-top: 0.5rem; transition: opacity 0.3s ease; }
 
     main {
       max-width: 700px;
@@ -98,10 +102,24 @@
       margin-top: 1rem;
     }
 
+    progress {
+      width: 100%;
+      height: 20px;
+      margin-top: 0.5rem;
+    }
+
     @media (max-width: 600px) {
       header h1 { font-size: 1.5rem; }
       main { margin: 1rem; padding: 1rem; }
       .team-info { flex-direction: column; align-items: flex-start; }
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body { background: #1e1e1e; color: #f0f0f0; }
+      main { background: #2c2c2c; }
+      input, select { background: #444; color: white; border-color: #666; }
+      button { background: #3a8ed2; }
+      button:hover { background: #2e76b5; }
     }
   </style>
 </head>
@@ -110,7 +128,7 @@
   <header>
     <h1>AfU Get Together</h1>
     <p>Kneipenquiz am 20.5.2025 – 16 Uhr · Raum 316</p>
-    <p id="countdown" style="margin-top: 0.5rem;">Countdown läuft...</p>
+    <p id="countdown">Countdown läuft...</p>
   </header>
 
   <main>
@@ -141,6 +159,7 @@
     <section>
       <h2>Teams</h2>
       <p id="teamCount" class="team-count">0 von 10 Teams angemeldet</p>
+      <progress id="teamProgress" value="0" max="10"></progress>
       <ul id="teamList"></ul>
     </section>
 
@@ -150,8 +169,8 @@
     const SUPABASE_URL = 'https://kzgyaxcbxynhmherwmro.supabase.co';
     const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6Z3lheGNieHluaG1oZXJ3bXJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyODYwMzUsImV4cCI6MjA1OTg2MjAzNX0.OgWr4CFCvjKBKznsw9RZwe4mdq4dyNBl4jduvBF40O0';
     const EMAILJS_SERVICE_ID = 'service_bp0g7aw';
-    const EMAILJS_TEMPLATE_ID = 'template_psn91iv'; // An das Team
-    const EMAILJS_ADMIN_TEMPLATE_ID = 'template_qx27ywb'; // An die Admins
+    const EMAILJS_TEMPLATE_ID = 'template_psn91iv';
+    const EMAILJS_ADMIN_TEMPLATE_ID = 'template_qx27ywb';
     const EMAILJS_PUBLIC_KEY = 'oLxnr_jGvicpbd7JM';
 
     emailjs.init(EMAILJS_PUBLIC_KEY);
@@ -160,6 +179,7 @@
     const feedback = document.getElementById('feedback');
     const teamList = document.getElementById('teamList');
     const teamCount = document.getElementById('teamCount');
+    const teamProgress = document.getElementById('teamProgress');
     const submitBtn = document.getElementById('submitBtn');
 
     async function fetchTeams() {
@@ -174,11 +194,12 @@
       teamList.innerHTML = '';
       data.forEach(team => {
         const li = document.createElement('li');
-        li.innerHTML = `<div class="team-info"><span>${team.team_name}</span><span>${team.team_size} Personen</span></div>`;
+        li.innerHTML = `<div class="team-info"><span>👥 <strong>${team.team_name}</strong></span><span>👤 ${team.team_size} Personen</span></div>`;
         teamList.appendChild(li);
       });
 
       teamCount.textContent = `${data.length} von 10 Teams angemeldet`;
+      teamProgress.value = data.length;
 
       if (data.length >= 10) {
         submitBtn.disabled = true;
@@ -206,7 +227,7 @@
         return;
       }
 
-      // Prüfen, ob Teamname schon vergeben
+      // Prüfen, ob Teamname schon vergeben ist
       const check = await fetch(`${SUPABASE_URL}/rest/v1/teams?select=team_name&team_name=eq.${encodeURIComponent(teamName)}`, {
         headers: {
           'apikey': API_KEY,
@@ -236,13 +257,11 @@
       });
 
       if (response.ok) {
-        // ✅ Mail an das Team
         emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
           team_name: teamName,
           email: email
         });
 
-        // ✅ Mail an dich als Admin
         emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_ADMIN_TEMPLATE_ID, {
           team_name: teamName,
           email: email,
@@ -259,7 +278,6 @@
       }
     });
 
-    // Countdown mit Sekunden
     function updateCountdown() {
       const eventDate = new Date("2025-05-20T16:00:00+02:00");
       const now = new Date();
