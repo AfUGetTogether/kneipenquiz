@@ -110,155 +110,179 @@
   <header>
     <h1>AfU Get Together</h1>
     <p>Kneipenquiz am 20.5.2025 – 16 Uhr · Raum 316</p>
+    <p id="countdown" style="margin-top: 0.5rem;">Countdown läuft...</p>
   </header>
 
- <main>
+  <main>
 
-  <section>
-    <h2>Anmeldung</h2>
-    <p>Hier kannst du dein Team anmelden. Es dürfen 2 bis 4 Personen teilnehmen. Maximal 10 Teams insgesamt.</p>
-    <form id="quizForm">
-      <label for="teamName">Teamname:</label>
-      <input type="text" id="teamName" name="teamName" required />
+    <section>
+      <h2>Anmeldung</h2>
+      <p>Hier kannst du dein Team anmelden. Es dürfen 2 bis 4 Personen teilnehmen. Maximal 10 Teams insgesamt.</p>
+      <form id="quizForm">
+        <label for="teamName">Teamname:</label>
+        <input type="text" id="teamName" name="teamName" required />
 
-      <label for="email">E-Mail-Adresse:</label>
-      <input type="email" id="email" name="email" required />
+        <label for="email">E-Mail-Adresse:</label>
+        <input type="email" id="email" name="email" required />
 
-      <label for="teamSize">Teamgröße (2–4 Personen):</label>
-      <select id="teamSize" name="teamSize" required>
-        <option value="" disabled selected>Bitte auswählen</option>
-        <option value="2">2 Personen</option>
-        <option value="3">3 Personen</option>
-        <option value="4">4 Personen</option>
-      </select>
+        <label for="teamSize">Teamgröße (2–4 Personen):</label>
+        <select id="teamSize" name="teamSize" required>
+          <option value="" disabled selected>Bitte auswählen</option>
+          <option value="2">2 Personen</option>
+          <option value="3">3 Personen</option>
+          <option value="4">4 Personen</option>
+        </select>
 
-      <button type="submit" id="submitBtn">Jetzt anmelden</button>
-      <p id="feedback" class="feedback"></p>
-    </form>
-  </section>
+        <button type="submit" id="submitBtn">Jetzt anmelden</button>
+        <p id="feedback" class="feedback"></p>
+      </form>
+    </section>
 
-  <section>
-    <h2>Countdown bis zum Quiz</h2>
-    <p id="countdown">Berechne Countdown…</p>
-  </section>
+    <section>
+      <h2>Teams</h2>
+      <p id="teamCount" class="team-count">0 von 10 Teams angemeldet</p>
+      <ul id="teamList"></ul>
+    </section>
 
-  <section>
-    <h2>Teams</h2>
-    <p id="teamCount" class="team-count">0 von 10 Teams angemeldet</p>
-    <ul id="teamList"></ul>
-  </section>
+  </main>
 
-</main>
+  <script>
+    const SUPABASE_URL = 'https://kzgyaxcbxynhmherwmro.supabase.co';
+    const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6Z3lheGNieHluaG1oZXJ3bXJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyODYwMzUsImV4cCI6MjA1OTg2MjAzNX0.OgWr4CFCvjKBKznsw9RZwe4mdq4dyNBl4jduvBF40O0';
+    const EMAILJS_SERVICE_ID = 'service_bp0g7aw';
+    const EMAILJS_TEMPLATE_ID = 'template_psn91iv'; // An das Team
+    const EMAILJS_ADMIN_TEMPLATE_ID = 'DEIN_ADMIN_TEMPLATE_ID'; // <-- Hier gleich einfügen
+    const EMAILJS_PUBLIC_KEY = 'oLxnr_jGvicpbd7JM';
 
-<script>
-  const SUPABASE_URL = 'https://kzgyaxcbxynhmherwmro.supabase.co';
-  const API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6Z3lheGNieHluaG1oZXJ3bXJvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQyODYwMzUsImV4cCI6MjA1OTg2MjAzNX0.OgWr4CFCvjKBKznsw9RZwe4mdq4dyNBl4jduvBF40O0';
-  const EMAILJS_SERVICE_ID = 'service_bp0g7aw'; 
-  const EMAILJS_TEMPLATE_ID = 'template_psn91iv';
-  const EMAILJS_PUBLIC_KEY = 'oLxnr_jGvicpbd7JM';
+    emailjs.init(EMAILJS_PUBLIC_KEY);
 
-  emailjs.init(EMAILJS_PUBLIC_KEY);
+    const form = document.getElementById('quizForm');
+    const feedback = document.getElementById('feedback');
+    const teamList = document.getElementById('teamList');
+    const teamCount = document.getElementById('teamCount');
+    const submitBtn = document.getElementById('submitBtn');
 
-  const form = document.getElementById('quizForm');
-  const feedback = document.getElementById('feedback');
-  const teamList = document.getElementById('teamList');
-  const teamCount = document.getElementById('teamCount');
-  const submitBtn = document.getElementById('submitBtn');
+    async function fetchTeams() {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/teams?select=team_name,team_size`, {
+        headers: {
+          'apikey': API_KEY,
+          'Authorization': `Bearer ${API_KEY}`
+        }
+      });
 
-  async function fetchTeams() {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/teams?select=team_name,team_size`, {
-      headers: {
-        'apikey': API_KEY,
-        'Authorization': `Bearer ${API_KEY}`
+      const data = await res.json();
+      teamList.innerHTML = '';
+      data.forEach(team => {
+        const li = document.createElement('li');
+        li.innerHTML = `<div class="team-info"><span>${team.team_name}</span><span>${team.team_size} Personen</span></div>`;
+        teamList.appendChild(li);
+      });
+
+      teamCount.textContent = `${data.length} von 10 Teams angemeldet`;
+
+      if (data.length >= 10) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = "Anmeldung geschlossen – alle Plätze belegt";
+        form.querySelectorAll("input, select").forEach(el => el.disabled = true);
+      }
+    }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const teamName = document.getElementById('teamName').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const teamSize = parseInt(document.getElementById('teamSize').value);
+
+      if (!teamName || !email || isNaN(teamSize)) {
+        feedback.textContent = "Bitte alle Felder korrekt ausfüllen.";
+        feedback.className = "feedback error";
+        return;
+      }
+
+      if (teamSize < 2 || teamSize > 4) {
+        feedback.textContent = "Teamgröße muss zwischen 2 und 4 Personen liegen.";
+        feedback.className = "feedback error";
+        return;
+      }
+
+      // Prüfen, ob Teamname schon vergeben
+      const check = await fetch(`${SUPABASE_URL}/rest/v1/teams?select=team_name&team_name=eq.${encodeURIComponent(teamName)}`, {
+        headers: {
+          'apikey': API_KEY,
+          'Authorization': `Bearer ${API_KEY}`
+        }
+      });
+
+      const existing = await check.json();
+      if (existing.length > 0) {
+        feedback.textContent = "Diesen Teamnamen gibt es bereits. Bitte wähle einen anderen.";
+        feedback.className = "feedback error";
+        return;
+      }
+
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/teams`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': API_KEY,
+          'Authorization': `Bearer ${API_KEY}`
+        },
+        body: JSON.stringify({
+          team_name: teamName,
+          email: email,
+          team_size: teamSize
+        })
+      });
+
+      if (response.ok) {
+        // ✅ Mail an das Team
+        emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+          team_name: teamName,
+          email: email
+        });
+
+        // ✅ Mail an dich als Admin
+        emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_ADMIN_TEMPLATE_ID, {
+          team_name: teamName,
+          email: email,
+          team_size: teamSize
+        });
+
+        feedback.textContent = "Anmeldung erfolgreich! Eine Bestätigung wurde gesendet.";
+        feedback.className = "feedback success";
+        form.reset();
+        fetchTeams();
+      } else {
+        feedback.textContent = "Fehler bei der Anmeldung. Bitte versuch's nochmal.";
+        feedback.className = "feedback error";
       }
     });
 
-    const data = await res.json();
-    console.log("Empfangene Daten:", data);
-    teamList.innerHTML = '';
-    data.forEach(team => {
-      const li = document.createElement('li');
-      li.innerHTML = `<div class="team-info"><span>${team.team_name}</span><span>${team.team_size} Personen</span></div>`;
-      teamList.appendChild(li);
-    });
+    // Countdown mit Sekunden
+    function updateCountdown() {
+      const eventDate = new Date("2025-05-20T16:00:00+02:00");
+      const now = new Date();
+      const diff = eventDate - now;
 
-    teamCount.textContent = `${data.length} von 10 Teams angemeldet`;
+      if (diff <= 0) {
+        document.getElementById('countdown').textContent = "Das Event läuft gerade oder ist vorbei!";
+        return;
+      }
 
-    if (data.length >= 10) {
-      submitBtn.disabled = true;
-      submitBtn.textContent = "Anmeldung geschlossen – alle Plätze belegt";
-      form.querySelectorAll("input, select").forEach(el => el.disabled = true);
-    }
-  }
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+      const minutes = Math.floor((diff / (1000 * 60)) % 60);
+      const seconds = Math.floor((diff / 1000) % 60);
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const teamName = document.getElementById('teamName').value.trim();
-    const email = document.getElementById('email').value.trim();
-    const teamSize = parseInt(document.getElementById('teamSize').value);
-
-    if (!teamName || !email || isNaN(teamSize)) {
-      feedback.textContent = "Bitte alle Felder korrekt ausfüllen.";
-      feedback.className = "feedback error";
-      return;
+      document.getElementById('countdown').textContent =
+        `${days} Tage, ${hours} Std, ${minutes} Min, ${seconds} Sek`;
     }
 
-    if (teamSize < 2 || teamSize > 4) {
-      feedback.textContent = "Teamgröße muss zwischen 2 und 4 Personen liegen.";
-      feedback.className = "feedback error";
-      return;
-    }
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
+    fetchTeams();
+  </script>
 
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/teams`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': API_KEY,
-        'Authorization': `Bearer ${API_KEY}`
-      },
-      body: JSON.stringify({
-        team_name: teamName,
-        email: email,
-        team_size: teamSize
-      })
-    });
-
-    if (response.ok) {
-      emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
-        team_name: teamName,
-        email: email
-      });
-
-      feedback.textContent = "Anmeldung erfolgreich! Eine Bestätigung wurde gesendet.";
-      feedback.className = "feedback success";
-      form.reset();
-      fetchTeams();
-    } else {
-      feedback.textContent = "Fehler bei der Anmeldung. Bitte versuch's nochmal.";
-      feedback.className = "feedback error";
-    }
-  });
-
-  // ⏳ Countdown bis zum Event
-  function updateCountdown() {
-    const eventDate = new Date("2025-05-20T16:00:00+02:00"); // Lokale Zeit
-    const now = new Date();
-    const diff = eventDate - now;
-
-    if (diff <= 0) {
-      document.getElementById('countdown').textContent = "Das Event läuft gerade oder ist vorbei!";
-      return;
-    }
-
-    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-    const minutes = Math.floor((diff / (1000 * 60)) % 60);
-
-    document.getElementById('countdown').textContent = `${days} Tage, ${hours} Stunden, ${minutes} Minuten`;
-  }
-
-  updateCountdown();
-  fetchTeams();
-  setInterval(updateCountdown, 60 * 1000); // alle Minute aktualisieren
-</script>
+</body>
+</html>
